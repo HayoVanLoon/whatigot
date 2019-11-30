@@ -14,7 +14,7 @@
 
 FROM golang:alpine AS builder
 
-RUN apk --update --no-cache add git
+RUN apk --update --no-cache add git protobuf
 
 WORKDIR /go/src/app
 
