@@ -6,6 +6,7 @@ A small web server that echoes request data. Main use is to inspect data
 Use for exploratory purposes only. Never expose this server in a production 
 environment.
 
+[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run)
 
 ## License
 Copyright 2019 Hayo van Loon
