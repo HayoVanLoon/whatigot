@@ -34,15 +34,13 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	b.WriteString("\n\n=== Headers ===\n")
 	printHeaders(&b, r)
 
-	b.WriteString("\n=== JWT ===\n")
 	printAuth(&b, r)
 
-	b.WriteString("\n\n=== Cookies ===\n")
+	b.WriteString("\n=== Cookies ===\n")
 	printCookies(&b, r)
 	b.WriteString("\n")
 
-	b.WriteString("\n=== Body ===\n")
-	b.WriteString("----------------\n")
+	b.WriteString("\n----- Body -----\n")
 	printBody(&b, r)
 	b.WriteString("\n----------------\n")
 
@@ -64,8 +62,10 @@ func printHeaders(b *strings.Builder, r *http.Request) {
 func printAuth(b *strings.Builder, r *http.Request) {
 	if auth := r.Header.Get("Authorization"); auth != "" {
 		if strings.ToLower(auth[0:7]) == "bearer " {
+			b.WriteString("\n=== JWT Token ===\n")
 			printJwt(b, auth)
 		} else if strings.ToLower(auth[0:6]) == "basic " {
+			b.WriteString("\n=== Basic Auth ===\n")
 			printBasicAuth(b, auth)
 		}
 	}
@@ -108,7 +108,7 @@ func printCookies(b *strings.Builder, r *http.Request) {
 		if c.Secure {
 			sec = " secure"
 		}
-		b.WriteString(fmt.Sprintf("%s/%s%s%s%s: %s\n", c.Domain, c.Path, age, ho, sec, c.Value))
+		b.WriteString(fmt.Sprintf("%s/%s%s%s%s: %s", c.Domain, c.Path, age, ho, sec, c.Value))
 	}
 }
 
