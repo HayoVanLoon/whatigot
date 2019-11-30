@@ -55,12 +55,14 @@ deploy:
 
 iam-allow-allAuthenticatedUsers:
 	gcloud run services add-iam-policy-binding $(SERVICE_NAME) \
-    	--member='allAuthenticatedUsers' \
-    	--role='roles/run.invoker
+    	--member=allAuthenticatedUsers \
+    	--role="roles/run.invoker" \
+    	--region=europe-west1 \
+		--platform=managed
 
 smoke-test:
 	curl \
 	--data "foo=bar" \
 	--cookie lalala=bla \
 	--header "Authorization: Bearer $(shell gcloud auth print-identity-token)" \
-	https://whatigot-r2mbcykd4q-ew.a.run.app
+	$$(gcloud run services list --region=europe-west1 --platform=managed | grep $(SERVICE_NAME) | awk '{print $$4}')
