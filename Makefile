@@ -66,3 +66,10 @@ smoke-test:
 	--cookie lalala=bla \
 	--header "Authorization: Bearer $(shell gcloud auth print-identity-token)" \
 	$$(gcloud run services list --region=europe-west1 --platform=managed | grep $(SERVICE_NAME) | awk '{print $$4}')/banana
+
+smoke-test-local:
+	curl \
+	--data "foo=bar" \
+	--cookie lalala=bla \
+	--header "Authorization: Bearer $(shell gcloud auth print-identity-token)" \
+	http://localhost:8080/banana
