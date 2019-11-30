@@ -19,6 +19,8 @@ VERSION := v1
 IMAGE_NAME := $(PROJECT_NAME)_$(VERSION)
 TAG := latest
 
+SERVICE_NAME := $(PROJECT_NAME)-$(VERSION)
+
 .PHONY:
 
 all: clean build push-gcr deploy smoke-test
@@ -41,14 +43,18 @@ push-gcr:
 	docker push gcr.io/$(GOOGLE_PROJECT_ID)/$(IMAGE_NAME)
 
 deploy:
-	gcloud beta run deploy whatigot --image=gcr.io/$(GOOGLE_PROJECT_ID)/$(IMAGE_NAME) \
+	gcloud iam service-accounts create $(SERVICE_NAME) \
+		--description="Not meant for production environments" \
+		--display-name "WhatIGot Service Account"
+	gcloud beta run deploy whatigot-v1 --image=gcr.io/$(GOOGLE_PROJECT_ID)/$(IMAGE_NAME) \
 		--region=europe-west1 \
 		--memory=128Mi \
 		--platform=managed \
-		--no-allow-unauthenticated
+		--no-allow-unauthenticated \
+		--service-account="$(SERVICE_NAME)@$(GOOGLE_PROJECT_ID).iam.gserviceaccount.com"
 
 iam-allow-allAuthenticatedUsers:
-	gcloud run services add-iam-policy-binding myservice \
+	gcloud run services add-iam-policy-binding $(SERVICE_NAME) \
     	--member='allAuthenticatedUsers' \
     	--role='roles/run.invoker
 
