@@ -12,22 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:alpine AS builder
+FROM golang:1.13-alpine AS builder
 
-RUN apk --update --no-cache add git protobuf
+RUN apk --update --no-cache add git
 
-WORKDIR /go/src/app
+ENV GO111MODULE=on
+
+WORKDIR /build
 
 COPY . .
 
 RUN go get -d -v ./...
-RUN go install -v ./...
+RUN CGO_ENABLED=0 GOOS=linux go build -o app
 
 # Next stage
 FROM alpine
 
 RUN apk --update --no-cache add ca-certificates openssl
 
-COPY --from=builder /go/bin/app /usr/local/bin
+COPY --from=builder /build/app /usr/local/bin
 
 CMD ["/usr/local/bin/app"]
