@@ -65,4 +65,4 @@ smoke-test:
 	--data "foo=bar" \
 	--cookie lalala=bla \
 	--header "Authorization: Bearer $(shell gcloud auth print-identity-token)" \
-	$$(gcloud run services list --region=europe-west1 --platform=managed | grep $(SERVICE_NAME) | awk '{print $$4}')
+	$$(gcloud run services list --region=europe-west1 --platform=managed | grep $(SERVICE_NAME) | awk '{print $$4}')/banana
