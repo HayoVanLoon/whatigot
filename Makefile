@@ -35,18 +35,18 @@ run:
 	go run server.go
 
 docker-run:
-	docker run --network="host" $(IMAGE_NAME)
-		/usr/local/bin/app
+	docker run \
+		--network="host" \
+		$(IMAGE_NAME)
 
 push-gcr:
 	docker tag $(IMAGE_NAME) gcr.io/$(GOOGLE_PROJECT_ID)/$(IMAGE_NAME):$(TAG)
 	docker push gcr.io/$(GOOGLE_PROJECT_ID)/$(IMAGE_NAME)
 
 deploy:
-	gcloud iam service-accounts create $(SERVICE_NAME) \
-		--description="Not meant for production environments" \
-		--display-name "WhatIGot Service Account"
-	gcloud beta run deploy whatigot-v1 --image=gcr.io/$(GOOGLE_PROJECT_ID)/$(IMAGE_NAME) \
+	gcloud iam service-accounts create $(SERVICE_NAME)
+	gcloud beta run deploy $(SERVICE_NAME) \
+		--image=gcr.io/$(GOOGLE_PROJECT_ID)/$(IMAGE_NAME) \
 		--region=europe-west1 \
 		--memory=128Mi \
 		--platform=managed \
@@ -65,7 +65,7 @@ smoke-test:
 	--data "foo=bar" \
 	--cookie lalala=bla \
 	--header "Authorization: Bearer $(shell gcloud auth print-identity-token)" \
-	$$(gcloud run services list --region=europe-west1 --platform=managed | grep $(SERVICE_NAME) | awk '{print $$4}')/banana
+	$$(gcloud run services list --region=europe-west1 --platform=managed | grep $(PROJECT_NAME) | awk '{print $$4}')/banana
 
 smoke-test-local:
 	curl \
@@ -73,3 +73,9 @@ smoke-test-local:
 	--cookie lalala=bla \
 	--header "Authorization: Bearer $(shell gcloud auth print-identity-token)" \
 	http://localhost:8080/banana
+
+destroy:
+	gcloud iam service-accounts delete "$(SERVICE_NAME)@$(GOOGLE_PROJECT_ID).iam.gserviceaccount.com"
+	gcloud run services delete $(SERVICE_NAME) \
+			--region=europe-west1 \
+    		--platform=managed
