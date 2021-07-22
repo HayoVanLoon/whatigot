@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Hayo van Loon
+ * Copyright 2021 Hayo van Loon
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,20 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/rs/cors"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
-func handle(w http.ResponseWriter, r *http.Request) {
+type handler struct{}
+
+func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	b := strings.Builder{}
 
 	b.WriteString("=== General ===\n")
@@ -44,8 +52,11 @@ func handle(w http.ResponseWriter, r *http.Request) {
 	printBody(&b, r)
 	b.WriteString("\n----------------\n")
 
+	s := b.String()
+	log.Printf(s)
+
 	w.Header().Add("Content-Type", "text/plain")
-	_, err := w.Write([]byte(b.String()))
+	_, err := w.Write([]byte(s))
 	if err != nil {
 		log.Print(err.Error())
 	}
@@ -60,7 +71,7 @@ func printHeaders(b *strings.Builder, r *http.Request) {
 }
 
 func printAuth(b *strings.Builder, r *http.Request) {
-	if auth := r.Header.Get("Authorization"); auth != "" {
+	if auth := r.Header.Get("Authorization"); len(auth) > 6 {
 		if strings.ToLower(auth[0:7]) == "bearer " {
 			b.WriteString("\n=== JWT Token ===\n")
 			printJwt(b, auth)
@@ -73,6 +84,10 @@ func printAuth(b *strings.Builder, r *http.Request) {
 
 func printJwt(b *strings.Builder, auth string) {
 	ss := strings.Split(auth[7:], ".")
+	if len(ss) < 2 {
+		b.WriteString("invalid token: " + auth)
+		return
+	}
 	s, err := base64.RawURLEncoding.DecodeString(ss[1])
 	if err == nil {
 		var i interface{}
@@ -124,7 +139,12 @@ func printBody(b *strings.Builder, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", handle)
+	http.Handle("/", cors.AllowAll().Handler(handler{}))
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Println("listening on port " + port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
