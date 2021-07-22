@@ -12,70 +12,92 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PROJECT_NAME := whatigot
+NAME := whatigot
 VERSION := v1
 
 # Docker-related
-IMAGE_NAME := $(PROJECT_NAME)_$(VERSION)
+IMAGE_NAME := $(NAME)_$(VERSION)
 TAG := latest
 
-SERVICE_NAME := $(PROJECT_NAME)-$(VERSION)
+SERVICE_NAME := $(NAME)-$(VERSION)
+
+PORT := 8080
+
 
 .PHONY:
 
-all: clean build push-gcr deploy smoke-test
+check-project:
+ifndef PROJECT
+	$(error missing PROJECT)
+endif
+
+all: clean build service-account deploy smoke-test
 
 clean:
 	go clean
 
-build:
-	docker build -t $(IMAGE_NAME) .
+build: check-project
+	go mod vendor && \
+	gcloud builds submit \
+		--project=$(PROJECT) \
+		--pack image=gcr.io/$(PROJECT)/$(IMAGE_NAME)
+	rm -rf vendor
 
 run:
-	go run server.go
+	export PORT=$(PORT) && go run server.go
 
-docker-run:
-	docker run \
-		--network="host" \
-		$(IMAGE_NAME)
+service-account: check-project
+	gcloud iam service-accounts create $(SERVICE_NAME) \
+		--project=$(PROJECT)
 
-push-gcr:
-	docker tag $(IMAGE_NAME) gcr.io/$(GOOGLE_PROJECT_ID)/$(IMAGE_NAME):$(TAG)
-	docker push gcr.io/$(GOOGLE_PROJECT_ID)/$(IMAGE_NAME)
-
-deploy:
-	gcloud iam service-accounts create $(SERVICE_NAME)
-	gcloud beta run deploy $(SERVICE_NAME) \
-		--image=gcr.io/$(GOOGLE_PROJECT_ID)/$(IMAGE_NAME) \
+deploy: check-project
+	gcloud run deploy $(SERVICE_NAME) \
+		--project=$(PROJECT) \
 		--region=europe-west1 \
-		--memory=128Mi \
 		--platform=managed \
+		--image=gcr.io/$(PROJECT)/$(IMAGE_NAME) \
+		--memory=128Mi \
 		--no-allow-unauthenticated \
-		--service-account="$(SERVICE_NAME)@$(GOOGLE_PROJECT_ID).iam.gserviceaccount.com"
+		--service-account="$(SERVICE_NAME)@$(PROJECT).iam.gserviceaccount.com"
 
-iam-allow-allAuthenticatedUsers:
+iam-allow-allAuthenticatedUsers: check-project
 	gcloud run services add-iam-policy-binding $(SERVICE_NAME) \
-    	--member=allAuthenticatedUsers \
-    	--role="roles/run.invoker" \
+ 		--project=$(PROJECT) \
     	--region=europe-west1 \
-		--platform=managed
+		--platform=managed \
+	   	--member=allAuthenticatedUsers \
+    	--role="roles/run.invoker"
 
-smoke-test:
+iam-allow-allUsers: check-project
+	gcloud run services add-iam-policy-binding $(SERVICE_NAME) \
+ 		--project=$(PROJECT) \
+    	--region=europe-west1 \
+		--platform=managed \
+	   	--member=allUsers \
+    	--role="roles/run.invoker"
+
+smoke-test: check-project
+	URL=$$(gcloud run services list \
+        		--project=$(PROJECT) \
+        		--region=europe-west1 \
+        		--platform=managed | grep whatigot | awk '{print $$4}')/banana && \
+    echo $$URL; \
 	curl \
-	--data "foo=bar" \
-	--cookie lalala=bla \
-	--header "Authorization: Bearer $(shell gcloud auth print-identity-token)" \
-	$$(gcloud run services list --region=europe-west1 --platform=managed | grep $(PROJECT_NAME) | awk '{print $$4}')/banana
+		--data "foo=bar" \
+		--cookie lalala=bla \
+		--header "Authorization: Bearer $(shell gcloud auth print-identity-token)" \
+		$$URL
 
 smoke-test-local:
 	curl \
 	--data "foo=bar" \
 	--cookie lalala=bla \
 	--header "Authorization: Bearer $(shell gcloud auth print-identity-token)" \
-	http://localhost:8080/banana
+	http://localhost:$(PORT)/banana
 
-destroy:
-	gcloud iam service-accounts delete "$(SERVICE_NAME)@$(GOOGLE_PROJECT_ID).iam.gserviceaccount.com"
+destroy: check-project
+	gcloud iam service-accounts delete "$(SERVICE_NAME)@$(PROJECT).iam.gserviceaccount.com"
 	gcloud run services delete $(SERVICE_NAME) \
-			--region=europe-west1 \
-    		--platform=managed
+ 		--project=$(PROJECT) \
+		--region=europe-west1 \
+		--platform=managed
